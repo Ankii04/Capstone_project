@@ -1,0 +1,152 @@
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+
+export default function Dashboard() {
+  const { token, user, logout } = useAuth();
+  const [projects, setProjects] = useState([]);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [createLoading, setCreateLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const headers = { Authorization: `Bearer ${token}` };
+
+  useEffect(() => {
+    axios.get(`${import.meta.env.VITE_API_URL}/projects`, { headers })
+      .then(res => setProjects(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const createProject = async (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setCreateLoading(true);
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/projects`, { title, description }, { headers });
+      setProjects([...projects, res.data]);
+      setTitle(''); 
+      setDescription('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const deleteProject = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this project?')) return;
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/projects/${id}`, { headers });
+      setProjects(projects.filter(p => p._id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const getUserInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  };
+
+  return (
+    <div>
+      {/* Premium Sticky Header */}
+      <header className="dashboard-header">
+        <h2>Team Task Manager</h2>
+        <div className="dashboard-user">
+          <div className="avatar" title={user?.email}>
+            {getUserInitials(user?.name)}
+          </div>
+          <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{user?.name}</span>
+          <button className="btn btn-secondary" onClick={logout} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <div className="dashboard-container">
+        {/* Compact Creator Card */}
+        <section className="creator-section">
+          <h3 className="creator-title">
+            <svg style={{ width: 22, height: 22, fill: 'hsl(var(--primary))' }} viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            Create New Project
+          </h3>
+          <form onSubmit={createProject} className="creator-inputs">
+            <input 
+              placeholder="Project Title" 
+              value={title} 
+              onChange={e => setTitle(e.target.value)} 
+              required 
+            />
+            <input 
+              placeholder="Short Description" 
+              value={description} 
+              onChange={e => setDescription(e.target.value)} 
+            />
+            <button type="submit" className="btn btn-primary" disabled={createLoading}>
+              {createLoading ? 'Adding...' : 'Add Project'}
+            </button>
+          </form>
+        </section>
+
+        {/* Your Projects Section */}
+        <div className="section-title">
+          <h3>Your Projects</h3>
+          <span style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', fontWeight: 500 }}>
+            {projects.length} {projects.length === 1 ? 'project' : 'projects'}
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="loading-container">
+            <div className="spinner"></div>
+            <p>Loading projects...</p>
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="empty-state">
+            <svg style={{ width: 48, height: 48, fill: 'currentColor', marginBottom: 12, opacity: 0.5 }} viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0h8v12H6V4z" clipRule="evenodd" />
+            </svg>
+            <h4>No projects yet</h4>
+            <p style={{ marginTop: 6, fontSize: '0.9rem' }}>Fill in the details above and add your first project to get started.</p>
+          </div>
+        ) : (
+          <div className="grid">
+            {projects.map(p => (
+              <div key={p._id} className="project-card">
+                <div>
+                  <div className="project-header">
+                    <span className="project-title">{p.title}</span>
+                    <span className="badge badge-progress">{p.status || 'active'}</span>
+                  </div>
+                  <p className="project-description">{p.description || 'No description provided.'}</p>
+                </div>
+                <div className="project-footer">
+                  <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
+                    Created: {new Date(p.createdAt).toLocaleDateString()}
+                  </span>
+                  <div className="project-actions">
+                    <button className="btn btn-secondary" onClick={() => navigate(`/project/${p._id}/tasks`)} style={{ padding: '8px 14px', fontSize: '0.85rem' }}>
+                      View Tasks
+                    </button>
+                    <button className="btn btn-danger" onClick={() => deleteProject(p._id)} style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg style={{ width: 16, height: 16, fill: 'currentColor' }} viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
