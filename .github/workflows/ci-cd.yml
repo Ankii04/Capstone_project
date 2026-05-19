@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - master
 
 jobs:
   build-and-push:
@@ -24,14 +25,14 @@ jobs:
       - name: Build and push Backend
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: ./team-project-manager/backend
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/backend:latest
 
       - name: Build and push Frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend
+          context: ./team-project-manager/frontend
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/frontend:latest
 
@@ -56,5 +57,5 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: ./frontend
+          working-directory: ./team-project-manager/frontend
           vercel-args: '--prod'
