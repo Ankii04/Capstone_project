@@ -297,6 +297,17 @@ input:focus, select:focus, textarea:focus {
   text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+.role-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: hsla(var(--accent), 0.14);
+  border: 1px solid hsla(var(--accent), 0.3);
+  color: hsl(var(--accent));
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .dashboard-container {
   max-width: 1200px;
   margin: 40px auto;
@@ -337,6 +348,49 @@ input:focus, select:focus, textarea:focus {
 .creator-inputs button {
   min-width: 140px;
   height: 48px;
+}
+
+.member-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.member-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid hsl(var(--border-color));
+  border-radius: 10px;
+  background-color: hsl(var(--bg-tertiary));
+  color: hsl(var(--text-primary));
+  cursor: pointer;
+}
+
+.member-option input {
+  width: auto;
+  grid-row: span 2;
+}
+
+.member-option small {
+  color: hsl(var(--text-muted));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-picker-compact {
+  grid-template-columns: 1fr;
+  margin-top: 14px;
+  max-height: 150px;
+  overflow: auto;
+}
+
+.member-picker-compact .member-option {
+  padding: 8px 10px;
 }
 
 /* Dashboard Projects Grid */
@@ -412,6 +466,14 @@ input:focus, select:focus, textarea:focus {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: hsl(var(--text-muted));
+  font-size: 0.8rem;
 }
 
 .project-footer {

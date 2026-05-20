@@ -6,30 +6,40 @@ import { useNavigate } from 'react-router-dom';
 export default function Dashboard() {
   const { token, user, logout } = useAuth();
   const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createLoading, setCreateLoading] = useState(false);
   const navigate = useNavigate();
 
   const headers = { Authorization: `Bearer ${token}` };
+  const canManage = ['admin', 'manager'].includes(user?.role);
 
   useEffect(() => {
     axios.get(`${import.meta.env.VITE_API_URL}/projects`, { headers })
       .then(res => setProjects(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+
+    if (canManage) {
+      axios.get(`${import.meta.env.VITE_API_URL}/users`, { headers })
+        .then(res => setUsers(res.data.filter(u => u.id !== user?.id && u._id !== user?.id)))
+        .catch(console.error);
+    }
+  }, [user?.role]);
 
   const createProject = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !canManage) return;
     setCreateLoading(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/projects`, { title, description }, { headers });
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/projects`, { title, description, members }, { headers });
       setProjects([...projects, res.data]);
       setTitle(''); 
       setDescription('');
+      setMembers([]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -47,6 +57,33 @@ export default function Dashboard() {
     }
   };
 
+  const updateProjectMembers = async (project, memberId) => {
+    const currentMembers = (project.members || []).map(member => member._id || member);
+    const nextMembers = currentMembers.includes(memberId)
+      ? currentMembers.filter(id => id !== memberId)
+      : [...currentMembers, memberId];
+
+    try {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL}/projects/${project._id}`, { members: nextMembers }, { headers });
+      setProjects(projects.map(p => p._id === project._id ? res.data : p));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleMember = (memberId) => {
+    setMembers(current =>
+      current.includes(memberId)
+        ? current.filter(id => id !== memberId)
+        : [...current, memberId]
+    );
+  };
+
+  const canDeleteProject = (project) => {
+    const ownerId = project.owner?._id || project.owner;
+    return user?.role === 'admin' || (user?.role === 'manager' && ownerId === user?.id);
+  };
+
   const getUserInitials = (name) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
@@ -62,6 +99,7 @@ export default function Dashboard() {
             {getUserInitials(user?.name)}
           </div>
           <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{user?.name}</span>
+          <span className="role-chip">{user?.role}</span>
           <button className="btn btn-secondary" onClick={logout} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
             Logout
           </button>
@@ -69,31 +107,47 @@ export default function Dashboard() {
       </header>
 
       <div className="dashboard-container">
-        {/* Compact Creator Card */}
-        <section className="creator-section">
-          <h3 className="creator-title">
-            <svg style={{ width: 22, height: 22, fill: 'hsl(var(--primary))' }} viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            Create New Project
-          </h3>
-          <form onSubmit={createProject} className="creator-inputs">
-            <input 
-              placeholder="Project Title" 
-              value={title} 
-              onChange={e => setTitle(e.target.value)} 
-              required 
-            />
-            <input 
-              placeholder="Short Description" 
-              value={description} 
-              onChange={e => setDescription(e.target.value)} 
-            />
-            <button type="submit" className="btn btn-primary" disabled={createLoading}>
-              {createLoading ? 'Adding...' : 'Add Project'}
-            </button>
-          </form>
-        </section>
+        {canManage && (
+          <section className="creator-section">
+            <h3 className="creator-title">
+              <svg style={{ width: 22, height: 22, fill: 'hsl(var(--primary))' }} viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              Create New Project
+            </h3>
+            <form onSubmit={createProject}>
+              <div className="creator-inputs">
+                <input 
+                  placeholder="Project Title" 
+                  value={title} 
+                  onChange={e => setTitle(e.target.value)} 
+                  required 
+                />
+                <input 
+                  placeholder="Short Description" 
+                  value={description} 
+                  onChange={e => setDescription(e.target.value)} 
+                />
+                <button type="submit" className="btn btn-primary" disabled={createLoading}>
+                  {createLoading ? 'Adding...' : 'Add Project'}
+                </button>
+              </div>
+              <div className="member-picker">
+                {users.filter(u => u.role === 'member').map(member => (
+                  <label key={member._id} className="member-option">
+                    <input
+                      type="checkbox"
+                      checked={members.includes(member._id)}
+                      onChange={() => toggleMember(member._id)}
+                    />
+                    <span>{member.name}</span>
+                    <small>{member.email}</small>
+                  </label>
+                ))}
+              </div>
+            </form>
+          </section>
+        )}
 
         {/* Your Projects Section */}
         <div className="section-title">
@@ -126,6 +180,28 @@ export default function Dashboard() {
                     <span className="badge badge-progress">{p.status || 'active'}</span>
                   </div>
                   <p className="project-description">{p.description || 'No description provided.'}</p>
+                  <div className="meta-row">
+                    <span>Manager: {p.owner?.name || 'Unknown'}</span>
+                    <span>{p.members?.length || 0} member{p.members?.length === 1 ? '' : 's'}</span>
+                  </div>
+                  {canDeleteProject(p) && users.filter(u => u.role === 'member').length > 0 && (
+                    <div className="member-picker member-picker-compact">
+                      {users.filter(u => u.role === 'member').map(member => {
+                        const projectMembers = (p.members || []).map(item => item._id || item);
+                        return (
+                          <label key={member._id} className="member-option">
+                            <input
+                              type="checkbox"
+                              checked={projectMembers.includes(member._id)}
+                              onChange={() => updateProjectMembers(p, member._id)}
+                            />
+                            <span>{member.name}</span>
+                            <small>{member.email}</small>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className="project-footer">
                   <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
@@ -135,11 +211,13 @@ export default function Dashboard() {
                     <button className="btn btn-secondary" onClick={() => navigate(`/project/${p._id}/tasks`)} style={{ padding: '8px 14px', fontSize: '0.85rem' }}>
                       View Tasks
                     </button>
-                    <button className="btn btn-danger" onClick={() => deleteProject(p._id)} style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg style={{ width: 16, height: 16, fill: 'currentColor' }} viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                    </button>
+                    {canDeleteProject(p) && (
+                      <button className="btn btn-danger" onClick={() => deleteProject(p._id)} style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg style={{ width: 16, height: 16, fill: 'currentColor' }} viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

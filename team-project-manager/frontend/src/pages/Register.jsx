@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 
 export default function Register() {
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'member' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,6 +85,19 @@ export default function Register() {
               onChange={e => setForm({ ...form, password: e.target.value })}
               required
             />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="role">Account Role</label>
+            <select
+              id="role"
+              value={form.role}
+              onChange={e => setForm({ ...form, role: e.target.value })}
+            >
+              <option value="member">Member</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
 
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
