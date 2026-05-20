@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '../api';
 
 export default function Dashboard() {
   const { token, user, logout } = useAuth();
@@ -18,13 +19,13 @@ export default function Dashboard() {
   const canManage = ['admin', 'manager'].includes(user?.role);
 
   useEffect(() => {
-    axios.get(`${import.meta.env.VITE_API_URL}/projects`, { headers })
+    axios.get(apiUrl('/projects'), { headers })
       .then(res => setProjects(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
 
     if (canManage) {
-      axios.get(`${import.meta.env.VITE_API_URL}/users`, { headers })
+      axios.get(apiUrl('/users'), { headers })
         .then(res => setUsers(res.data.filter(u => u.id !== user?.id && u._id !== user?.id)))
         .catch(console.error);
     }
@@ -35,7 +36,7 @@ export default function Dashboard() {
     if (!title.trim() || !canManage) return;
     setCreateLoading(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/projects`, { title, description, members }, { headers });
+      const res = await axios.post(apiUrl('/projects'), { title, description, members }, { headers });
       setProjects([...projects, res.data]);
       setTitle(''); 
       setDescription('');
@@ -50,7 +51,7 @@ export default function Dashboard() {
   const deleteProject = async (id) => {
     if (!window.confirm('Are you sure you want to delete this project?')) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/projects/${id}`, { headers });
+      await axios.delete(apiUrl(`/projects/${id}`), { headers });
       setProjects(projects.filter(p => p._id !== id));
     } catch (err) {
       console.error(err);
@@ -64,7 +65,7 @@ export default function Dashboard() {
       : [...currentMembers, memberId];
 
     try {
-      const res = await axios.put(`${import.meta.env.VITE_API_URL}/projects/${project._id}`, { members: nextMembers }, { headers });
+      const res = await axios.put(apiUrl(`/projects/${project._id}`), { members: nextMembers }, { headers });
       setProjects(projects.map(p => p._id === project._id ? res.data : p));
     } catch (err) {
       console.error(err);

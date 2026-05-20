@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useParams, useNavigate } from 'react-router-dom';
+import { apiUrl } from '../api';
 
 export default function TaskPage() {
   const { token, user, logout } = useAuth();
@@ -23,14 +24,14 @@ export default function TaskPage() {
 
   useEffect(() => {
     // Fetch project info to show nice title
-    axios.get(`${import.meta.env.VITE_API_URL}/projects`, { headers })
+    axios.get(apiUrl('/projects'), { headers })
       .then(res => {
         const proj = res.data.find(p => p._id === id);
         if (proj) setProject(proj);
       })
       .catch(console.error);
 
-    axios.get(`${import.meta.env.VITE_API_URL}/tasks/${id}`, { headers })
+    axios.get(apiUrl(`/tasks/${id}`), { headers })
       .then(res => setTasks(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -41,7 +42,7 @@ export default function TaskPage() {
     if (!form.title.trim() || !canManage) return;
     setCreateLoading(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/tasks/${id}`, form, { headers });
+      const res = await axios.post(apiUrl(`/tasks/${id}`), form, { headers });
       setTasks([...tasks, res.data]);
       setForm({ title: '', description: '', priority: 'medium', assignedTo: '' });
     } catch (err) {
@@ -53,7 +54,7 @@ export default function TaskPage() {
 
   const updateStatus = async (taskId, status) => {
     try {
-      const res = await axios.put(`${import.meta.env.VITE_API_URL}/tasks/${taskId}`, { status }, { headers });
+      const res = await axios.put(apiUrl(`/tasks/${taskId}`), { status }, { headers });
       setTasks(tasks.map(t => t._id === taskId ? res.data : t));
     } catch (err) {
       console.error(err);
@@ -62,7 +63,7 @@ export default function TaskPage() {
 
   const updateAssignee = async (taskId, assignedTo) => {
     try {
-      const res = await axios.put(`${import.meta.env.VITE_API_URL}/tasks/${taskId}`, { assignedTo }, { headers });
+      const res = await axios.put(apiUrl(`/tasks/${taskId}`), { assignedTo }, { headers });
       setTasks(tasks.map(t => t._id === taskId ? res.data : t));
     } catch (err) {
       console.error(err);
@@ -72,7 +73,7 @@ export default function TaskPage() {
   const deleteTask = async (taskId) => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/tasks/${taskId}`, { headers });
+      await axios.delete(apiUrl(`/tasks/${taskId}`), { headers });
       setTasks(tasks.filter(t => t._id !== taskId));
     } catch (err) {
       console.error(err);
