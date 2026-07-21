@@ -17,5 +17,6 @@ spec:
       containers:
         - name: frontend
           image: ankii04/frontend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

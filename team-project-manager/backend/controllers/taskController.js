@@ -1,5 +1,6 @@
 const Task = require('../models/Task');
 const Project = require('../models/Project');
+const ActivityLog = require('../models/ActivityLog');
 
 const isAdmin = (req) => req.user.role === 'admin';
 const isManager = (req) => req.user.role === 'manager';
@@ -17,6 +18,14 @@ const canManageProject = (project, req) => {
 };
 
 const populateTask = (query) => query.populate('assignedTo', 'name email role');
+
+const logActivity = async ({ project, user, action, entity, entityName, detail }) => {
+  try {
+    await ActivityLog.create({ project, user, action, entity, entityName, detail });
+  } catch (e) {
+    console.error('ActivityLog error:', e.message);
+  }
+};
 
 exports.getTasks = async (req, res) => {
   try {
@@ -46,8 +55,17 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ message: 'Assigned user must be a project member' });
     }
 
-    const task = await Task.create({ ...req.body, assignedTo, project: req.params.projectId });
+    const taskData = { ...req.body, assignedTo, project: req.params.projectId };
+    if (taskData.dueDate === '') taskData.dueDate = null;
+
+    const task = await Task.create(taskData);
     const populated = await task.populate('assignedTo', 'name email role');
+
+    await logActivity({ project: req.params.projectId, user: req.user.id, action: 'created', entity: 'task', entityName: task.title });
+
+    const io = req.app.get('io');
+    if (io) io.to(req.params.projectId).emit('task:created', populated);
+
     res.status(201).json(populated);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -64,6 +82,7 @@ exports.updateTask = async (req, res) => {
 
     const updates = { ...req.body };
     if (updates.assignedTo === '') updates.assignedTo = null;
+    if (updates.dueDate === '') updates.dueDate = null;
 
     const userIsAssignee = task.assignedTo?.toString() === req.user.id;
     const allowedMemberUpdate = Object.keys(updates).every(key => key === 'status') && userIsAssignee;
@@ -76,7 +95,16 @@ exports.updateTask = async (req, res) => {
       return res.status(400).json({ message: 'Assigned user must be a project member' });
     }
 
+    const oldStatus = task.status;
     const updatedTask = await populateTask(Task.findByIdAndUpdate(req.params.id, updates, { new: true }));
+
+    let detail = '';
+    if (updates.status && updates.status !== oldStatus) detail = `status changed to ${updates.status}`;
+    await logActivity({ project: task.project, user: req.user.id, action: 'updated', entity: 'task', entityName: task.title, detail });
+
+    const io = req.app.get('io');
+    if (io) io.to(task.project.toString()).emit('task:updated', updatedTask);
+
     res.json(updatedTask);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -93,6 +121,12 @@ exports.deleteTask = async (req, res) => {
     if (!canManageProject(project, req)) return res.status(403).json({ message: 'Access denied' });
 
     await Task.findByIdAndDelete(req.params.id);
+
+    await logActivity({ project: task.project, user: req.user.id, action: 'deleted', entity: 'task', entityName: task.title });
+
+    const io = req.app.get('io');
+    if (io) io.to(task.project.toString()).emit('task:deleted', { taskId: req.params.id });
+
     res.json({ message: 'Task deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });

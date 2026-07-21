@@ -17,6 +17,7 @@ spec:
       containers:
         - name: backend
           image: ankii04/backend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           env:
